@@ -1,4 +1,4 @@
--- Legends of Speed Script: Cryo-Hub Features with Hyper Hub GUI
+-- Legends of Speed Script: Cryo-Hub Features with Hyper Hub GUI (Đã thêm Invisible Orbs)
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
@@ -16,8 +16,47 @@ local AUTO_ORANGE_ORBS = false
 local AUTO_YELLOW_ORBS = false
 local AUTO_HOOPS = false
 local AUTO_REBIRTH = false
+local INVISIBLE_ORBS = false -- Thêm toggle cho Invisible Orbs
 local SUCK_SPEED = 0.05
-local WALKSPEED = 16 -- Giá trị mặc định
+
+-- Phạm vi các đảo (tọa độ X, Y, Z) - Giữ lại để dùng cho Blue/Red/Orange/Yellow Orbs
+local IslandRanges = {
+    BeginnerIsland = {
+        Min = Vector3.new(-2000, 0, -2000),
+        Max = Vector3.new(2000, 1000, 2000),
+    },
+    SpaceIsland = {
+        Min = Vector3.new(48000, 0, 48000),
+        Max = Vector3.new(52000, 1000, 52000),
+    },
+    DesertIsland = {
+        Min = Vector3.new(98000, 0, 98000),
+        Max = Vector3.new(102000, 1000, 102000),
+    },
+}
+
+-- Hàm kiểm tra xem một điểm có nằm trong phạm vi đảo không
+local function IsInRange(position, island)
+    local min = island.Min
+    local max = island.Max
+    return position.X >= min.X and position.X <= max.X and
+           position.Y >= min.Y and position.Y <= max.Y and
+           position.Z >= min.Z and position.Z <= max.Z
+end
+
+-- Hàm xác định đảo hiện tại của nhân vật
+local function GetCurrentIsland()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
+    local position = LocalPlayer.Character.HumanoidRootPart.Position
+    for islandName, range in pairs(IslandRanges) do
+        if IsInRange(position, range) then
+            return range
+        end
+    end
+    return nil
+end
 
 -- Tạo GUI
 local ScreenGui = Instance.new("ScreenGui")
@@ -96,7 +135,7 @@ PepeFrame.Parent = PepeScreenGui
 local PepeImage = Instance.new("ImageLabel")
 PepeImage.Size = UDim2.new(1, 0, 1, 0)
 PepeImage.BackgroundTransparency = 1
-PepeImage.Image = "rbxassetid://698916642" -- ID của hình Pepe the Frog
+PepeImage.Image = "rbxassetid://698916642"
 PepeImage.Parent = PepeFrame
 
 -- Hiệu ứng viền cầu vồng
@@ -313,17 +352,20 @@ local function createSlider(name, positionY, min, max, default, callback, folder
     callback(default)
 end
 
--- Hút tất cả orbs (tính năng của Cryo-Hub)
+-- Hút tất cả orbs (toàn map, thu thập nhiều orbs cùng lúc)
 local function autoCollectAllOrbs(toggle)
     if toggle then
         spawn(function()
             while AUTO_ALL_ORBS do
                 if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    local orbsToCollect = {}
                     for _, v in pairs(Workspace.orbFolder:GetDescendants()) do
                         if v:IsA("BasePart") then
-                            v.Position = LocalPlayer.Character.HumanoidRootPart.Position
-                            wait(SUCK_SPEED)
+                            table.insert(orbsToCollect, v)
                         end
+                    end
+                    for _, orb in ipairs(orbsToCollect) do
+                        orb.Position = LocalPlayer.Character.HumanoidRootPart.Position
                     end
                 end
                 wait(SUCK_SPEED)
@@ -332,16 +374,22 @@ local function autoCollectAllOrbs(toggle)
     end
 end
 
--- Hút Blue Orbs
+-- Hút Blue Orbs (phạm vi đảo, thu thập nhiều orbs cùng lúc)
 local function autoCollectBlueOrbs(toggle)
     if toggle then
         spawn(function()
             while AUTO_BLUE_ORBS do
                 if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    for _, v in pairs(Workspace:GetDescendants()) do
-                        if v:IsA("BasePart") and v.Name == "orb" and v.Parent.Name == "blueOrbs" then
-                            LocalPlayer.Character.HumanoidRootPart.CFrame = v.CFrame
-                            wait(SUCK_SPEED)
+                    local currentIsland = GetCurrentIsland()
+                    if currentIsland then
+                        local orbsToCollect = {}
+                        for _, v in pairs(Workspace.orbFolder:GetDescendants()) do
+                            if v:IsA("BasePart") and v.Parent.Name == "blueOrbs" and IsInRange(v.Position, currentIsland) then
+                                table.insert(orbsToCollect, v)
+                            end
+                        end
+                        for _, orb in ipairs(orbsToCollect) do
+                            orb.Position = LocalPlayer.Character.HumanoidRootPart.Position
                         end
                     end
                 end
@@ -351,16 +399,22 @@ local function autoCollectBlueOrbs(toggle)
     end
 end
 
--- Hút Red Orbs
+-- Hút Red Orbs (phạm vi đảo, thu thập nhiều orbs cùng lúc)
 local function autoCollectRedOrbs(toggle)
     if toggle then
         spawn(function()
             while AUTO_RED_ORBS do
                 if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    for _, v in pairs(Workspace:GetDescendants()) do
-                        if v:IsA("BasePart") and v.Name == "orb" and v.Parent.Name == "redOrbs" then
-                            LocalPlayer.Character.HumanoidRootPart.CFrame = v.CFrame
-                            wait(SUCK_SPEED)
+                    local currentIsland = GetCurrentIsland()
+                    if currentIsland then
+                        local orbsToCollect = {}
+                        for _, v in pairs(Workspace.orbFolder:GetDescendants()) do
+                            if v:IsA("BasePart") and v.Parent.Name == "redOrbs" and IsInRange(v.Position, currentIsland) then
+                                table.insert(orbsToCollect, v)
+                            end
+                        end
+                        for _, orb in ipairs(orbsToCollect) do
+                            orb.Position = LocalPlayer.Character.HumanoidRootPart.Position
                         end
                     end
                 end
@@ -370,16 +424,22 @@ local function autoCollectRedOrbs(toggle)
     end
 end
 
--- Hút Orange Orbs
+-- Hút Orange Orbs (phạm vi đảo, thu thập nhiều orbs cùng lúc)
 local function autoCollectOrangeOrbs(toggle)
     if toggle then
         spawn(function()
             while AUTO_ORANGE_ORBS do
                 if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    for _, v in pairs(Workspace:GetDescendants()) do
-                        if v:IsA("BasePart") and v.Name == "orb" and v.Parent.Name == "orangeOrbs" then
-                            LocalPlayer.Character.HumanoidRootPart.CFrame = v.CFrame
-                            wait(SUCK_SPEED)
+                    local currentIsland = GetCurrentIsland()
+                    if currentIsland then
+                        local orbsToCollect = {}
+                        for _, v in pairs(Workspace.orbFolder:GetDescendants()) do
+                            if v:IsA("BasePart") and v.Parent.Name == "orangeOrbs" and IsInRange(v.Position, currentIsland) then
+                                table.insert(orbsToCollect, v)
+                            end
+                        end
+                        for _, orb in ipairs(orbsToCollect) do
+                            orb.Position = LocalPlayer.Character.HumanoidRootPart.Position
                         end
                     end
                 end
@@ -389,16 +449,22 @@ local function autoCollectOrangeOrbs(toggle)
     end
 end
 
--- Hút Yellow Orbs (EXP Orbs)
+-- Hút Yellow Orbs (EXP Orbs) (phạm vi đảo, thu thập nhiều orbs cùng lúc)
 local function autoCollectYellowOrbs(toggle)
     if toggle then
         spawn(function()
             while AUTO_YELLOW_ORBS do
                 if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    for _, v in pairs(Workspace:GetDescendants()) do
-                        if v:IsA("BasePart") and v.Name == "orb" and v.Parent.Name == "yellowOrbs" then
-                            LocalPlayer.Character.HumanoidRootPart.CFrame = v.CFrame
-                            wait(SUCK_SPEED)
+                    local currentIsland = GetCurrentIsland()
+                    if currentIsland then
+                        local orbsToCollect = {}
+                        for _, v in pairs(Workspace.orbFolder:GetDescendants()) do
+                            if v:IsA("BasePart") and v.Parent.Name == "yellowOrbs" and IsInRange(v.Position, currentIsland) then
+                                table.insert(orbsToCollect, v)
+                            end
+                        end
+                        for _, orb in ipairs(orbsToCollect) do
+                            orb.Position = LocalPlayer.Character.HumanoidRootPart.Position
                         end
                     end
                 end
@@ -408,7 +474,7 @@ local function autoCollectYellowOrbs(toggle)
     end
 end
 
--- Hút Hoops (tính năng của Cryo-Hub)
+-- Hút Hoops (giữ nguyên)
 local function autoCollectHoops(toggle)
     if toggle then
         spawn(function()
@@ -427,21 +493,50 @@ local function autoCollectHoops(toggle)
     end
 end
 
--- Auto Rebirth (tính năng của Cryo-Hub)
+-- Auto Rebirth (giữ nguyên)
 local function autoRebirth(toggle)
     if toggle then
         spawn(function()
             while AUTO_REBIRTH do
                 ReplicatedStorage.Rebirth:InvokeServer()
-                wait(1) -- Đợi 1 giây giữa các lần rebirth
+                wait(1)
             end
         end)
     end
 end
 
--- Điều chỉnh Walkspeed (tính năng của Cryo-Hub)
+-- Làm tất cả orbs vô hình (toàn map)
+local function toggleInvisibleOrbs(toggle)
+    INVISIBLE_ORBS = toggle
+    if toggle then
+        for _, v in pairs(Workspace.orbFolder:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Transparency = 1 -- Làm orbs vô hình
+            end
+        end
+        -- Vòng lặp để đảm bảo orbs mới sinh ra cũng vô hình
+        spawn(function()
+            while INVISIBLE_ORBS do
+                for _, v in pairs(Workspace.orbFolder:GetDescendants()) do
+                    if v:IsA("BasePart") and v.Transparency ~= 1 then
+                        v.Transparency = 1
+                    end
+                end
+                wait(0.1)
+            end
+        end)
+    else
+        -- Khôi phục orbs về trạng thái hữu hình
+        for _, v in pairs(Workspace.orbFolder:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Transparency = 0
+            end
+        end
+    end
+end
+
+-- Điều chỉnh Walkspeed
 local function setWalkspeed(value)
-    WALKSPEED = value
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
         LocalPlayer.Character.Humanoid.WalkSpeed = value
     end
@@ -483,6 +578,12 @@ AUTO_REBIRTH = createToggleButton("Auto Rebirth", 240, AUTO_REBIRTH, function(to
     autoRebirth(toggle)
 end, MainFolder)
 
+-- Thêm toggle Invisible Orbs
+AUTO_INVISIBLE_ORBS = createToggleButton("Invisible Orbs", 280, INVISIBLE_ORBS, function(toggle)
+    INVISIBLE_ORBS = toggle
+    toggleInvisibleOrbs(toggle)
+end, MainFolder)
+
 createSlider("Walkspeed", 0, 16, 250, 16, function(value)
     setWalkspeed(value)
 end, MiscFolder)
@@ -496,7 +597,7 @@ LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     Character = newCharacter
     Humanoid = newCharacter:WaitForChild("Humanoid")
     HumanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart")
-    Humanoid.WalkSpeed = WALKSPEED
+    Humanoid.WalkSpeed = 16
     if AUTO_ALL_ORBS then autoCollectAllOrbs(true) end
     if AUTO_BLUE_ORBS then autoCollectBlueOrbs(true) end
     if AUTO_RED_ORBS then autoCollectRedOrbs(true) end
@@ -504,6 +605,7 @@ LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     if AUTO_YELLOW_ORBS then autoCollectYellowOrbs(true) end
     if AUTO_HOOPS then autoCollectHoops(true) end
     if AUTO_REBIRTH then autoRebirth(true) end
+    if INVISIBLE_ORBS then toggleInvisibleOrbs(true) end
 end)
 
 -- Anti AFK
