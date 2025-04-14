@@ -1,3 +1,59 @@
+-- Thêm vào đầu script
+local KeyScreenGui = Instance.new("ScreenGui")
+KeyScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+KeyScreenGui.ResetOnSpawn = false
+
+local KeyFrame = Instance.new("Frame")
+KeyFrame.Size = UDim2.new(0, 300, 0, 150)
+KeyFrame.Position = UDim2.new(0.5, -150, 0.5, -75)
+KeyFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+KeyFrame.Parent = KeyScreenGui
+
+local KeyLabel = Instance.new("TextLabel")
+KeyLabel.Size = UDim2.new(1, 0, 0, 40)
+KeyLabel.BackgroundTransparency = 1
+KeyLabel.Text = "Enter Key to Unlock Menu"
+KeyLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyLabel.TextSize = 20
+KeyLabel.Parent = KeyFrame
+
+local KeyInput = Instance.new("TextBox")
+KeyInput.Size = UDim2.new(0, 260, 0, 40)
+KeyInput.Position = UDim2.new(0, 20, 0, 50)
+KeyInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+KeyInput.Text = ""
+KeyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyInput.TextSize = 16
+KeyInput.Parent = KeyFrame
+
+local SubmitButton = Instance.new("TextButton")
+SubmitButton.Size = UDim2.new(0, 100, 0, 40)
+SubmitButton.Position = UDim2.new(0, 100, 0, 100)
+SubmitButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+SubmitButton.Text = "Submit"
+SubmitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+SubmitButton.TextSize = 16
+SubmitButton.Parent = KeyFrame
+
+-- Key hợp lệ (có thể thay đổi)
+local ValidKey = "HYPERHUB2025"
+
+-- Ẩn menu chính ban đầu
+MainFrame.Visible = false
+
+-- Xử lý nhập key
+SubmitButton.MouseButton1Click:Connect(function()
+    if KeyInput.Text == ValidKey then
+        KeyScreenGui:Destroy() -- Xóa màn hình nhập key
+        MainFrame.Visible = true -- Hiển thị menu chính
+        print("Key accepted! Menu unlocked.")
+    else
+        KeyInput.Text = "Invalid Key.Again❌"
+        wait(1)
+        KeyInput.Text = ""
+    end
+end)
+
 -- Legends of Speed Script: Cryo-Hub Features with Hyper Hub GUI (Đã thêm Pets và Teleport)
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
