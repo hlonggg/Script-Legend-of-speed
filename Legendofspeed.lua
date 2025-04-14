@@ -1,4 +1,4 @@
--- Legends of Speed Script: Cryo-Hub Features with Hyper Hub GUI (Đã thêm Invisible Orbs)
+-- Legends of Speed Script: Cryo-Hub Features with Hyper Hub GUI (Đã thêm Pets và Teleport)
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
@@ -16,8 +16,38 @@ local AUTO_ORANGE_ORBS = false
 local AUTO_YELLOW_ORBS = false
 local AUTO_HOOPS = false
 local AUTO_REBIRTH = false
-local INVISIBLE_ORBS = false -- Thêm toggle cho Invisible Orbs
+local INVISIBLE_ORBS = false
+local AUTO_BUY_PET = false -- Toggle Auto Buy Pet
+local AUTO_EVOLVE_PETS = false -- Toggle Auto Evolve Pets
 local SUCK_SPEED = 0.05
+
+-- Danh sách pets (dựa trên thông tin từ web)
+local PetsList = {
+    -- Beginner Island
+    { Name = "Red Bunny", Crystal = "Basic Crystal", Cost = 100, Steps = 50, Gems = 20, Island = "BeginnerIsland" },
+    { Name = "Red Kitty", Crystal = "Basic Crystal", Cost = 100, Steps = 50, Gems = 20, Island = "BeginnerIsland" },
+    { Name = "Green Vampire", Crystal = "Basic Crystal", Cost = 500, Steps = 100, Gems = 50, Island = "BeginnerIsland" },
+    -- Space Island
+    { Name = "Orange Falcon", Crystal = "Advanced Crystal", Cost = 1000, Steps = 200, Gems = 100, Island = "SpaceIsland" },
+    { Name = "Purple Pegasus", Crystal = "Purple Crystal", Cost = 2000, Steps = 300, Gems = 150, Island = "SpaceIsland" },
+    -- Desert Island
+    { Name = "Silver Dog", Crystal = "Electro Crystal", Cost = 5000, Steps = 500, Gems = 250, Island = "DesertIsland" },
+    { Name = "Pink Butterfly", Crystal = "Electro Crystal", Cost = 5000, Steps = 500, Gems = 250, Island = "DesertIsland" },
+    { Name = "Ultra Birdie", Crystal = "Electro Crystal", Cost = 50000, Steps = 1444, Gems = 1170, Island = "DesertIsland" },
+    { Name = "Orange Dragon", Crystal = "Electro Crystal", Cost = 50000, Steps = 2000, Gems = 1500, Island = "DesertIsland" },
+}
+
+-- Danh sách đảo và tọa độ để teleport
+local IslandsList = {
+    { Name = "Beginner Island", Position = Vector3.new(0, 50, 0) },
+    { Name = "Space Island", Position = Vector3.new(50000, 50, 50000) },
+    { Name = "Desert Island", Position = Vector3.new(100000, 50, 100000) },
+    { Name = "Legends Highway", Position = Vector3.new(150000, 50, 150000) },
+    { Name = "Magma City", Position = Vector3.new(200000, 50, 200000) },
+}
+
+-- Biến lưu pet đã chọn
+local SelectedPet = nil
 
 -- Phạm vi các đảo (tọa độ X, Y, Z) - Giữ lại để dùng cho Blue/Red/Orange/Yellow Orbs
 local IslandRanges = {
@@ -273,6 +303,8 @@ end
 
 -- Tạo các folder
 local MainFolder = createFolder("Main")
+local PetsFolder = createFolder("Pets") -- Thêm folder Pets
+local TeleportFolder = createFolder("Teleport") -- Thêm folder Teleport
 local MiscFolder = createFolder("Misc")
 
 -- Hàm tạo nút toggle
@@ -281,14 +313,14 @@ local function createToggleButton(name, positionY, toggleVar, callback, folder)
     button.Size = UDim2.new(0, 320, 0, 40)
     button.Position = UDim2.new(0, 10, 0, positionY)
     button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    button.Text = name .. ": " .. (toggleVar and "ON" or "OFF")
+    button.Text = name .. ": " .. (toggleVar and "✅" or "❌")
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
     button.TextSize = 16
     button.Parent = folder
     
     button.MouseButton1Click:Connect(function()
         toggleVar = not toggleVar
-        button.Text = name .. ": " .. (toggleVar and "ON" or "OFF")
+        button.Text = name .. ": " .. (toggleVar and "✅" or "❌")
         button.BackgroundColor3 = toggleVar and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(50, 50, 50)
         callback(toggleVar)
     end)
@@ -350,6 +382,132 @@ local function createSlider(name, positionY, min, max, default, callback, folder
     end)
 
     callback(default)
+end
+
+-- Hàm tạo nút chọn pet với bảng dropdown
+local function createPetSelector(positionY, folder)
+    local petSelectorFrame = Instance.new("Frame")
+    petSelectorFrame.Size = UDim2.new(0, 320, 0, 40)
+    petSelectorFrame.Position = UDim2.new(0, 10, 0, positionY)
+    petSelectorFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    petSelectorFrame.Parent = folder
+
+    local petLabel = Instance.new("TextLabel")
+    petLabel.Size = UDim2.new(0, 280, 0, 40)
+    petLabel.BackgroundTransparency = 1
+    petLabel.Text = "Select Pet: None"
+    petLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    petLabel.TextSize = 16
+    petLabel.TextXAlignment = Enum.TextXAlignment.Left
+    petLabel.Parent = petSelectorFrame
+
+    local dropdownButton = Instance.new("TextButton")
+    dropdownButton.Size = UDim2.new(0, 40, 0, 40)
+    dropdownButton.Position = UDim2.new(0, 280, 0, 0)
+    dropdownButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    dropdownButton.Text = "☟"
+    dropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    dropdownButton.TextSize = 16
+    dropdownButton.Parent = petSelectorFrame
+
+    local dropdownFrame = Instance.new("ScrollingFrame")
+    dropdownFrame.Size = UDim2.new(0, 320, 0, 150)
+    dropdownFrame.Position = UDim2.new(0, 0, 0, 40)
+    dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    dropdownFrame.BorderSizePixel = 0
+    dropdownFrame.Visible = false
+    dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, #PetsList * 30)
+    dropdownFrame.Parent = petSelectorFrame
+
+    local dropdownList = Instance.new("UIListLayout")
+    dropdownList.Parent = dropdownFrame
+    dropdownList.SortOrder = Enum.SortOrder.LayoutOrder
+    dropdownList.Padding = UDim.new(0, 2)
+
+    -- Thêm các pet vào bảng dropdown
+    for i, pet in ipairs(PetsList) do
+        local petButton = Instance.new("TextButton")
+        petButton.Size = UDim2.new(0, 320, 0, 30)
+        petButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        petButton.Text = pet.Name .. " (" .. pet.Island .. ")"
+        petButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        petButton.TextSize = 14
+        petButton.Parent = dropdownFrame
+
+        petButton.MouseButton1Click:Connect(function()
+            SelectedPet = pet
+            petLabel.Text = "Select Pet: " .. pet.Name
+            dropdownFrame.Visible = false
+        end)
+    end
+
+    dropdownButton.MouseButton1Click:Connect(function()
+        dropdownFrame.Visible = not dropdownFrame.Visible
+    end)
+end
+
+-- Hàm tạo nút chọn đảo với bảng dropdown
+local function createIslandSelector(positionY, folder)
+    local islandSelectorFrame = Instance.new("Frame")
+    islandSelectorFrame.Size = UDim2.new(0, 320, 0, 40)
+    islandSelectorFrame.Position = UDim2.new(0, 10, 0, positionY)
+    islandSelectorFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    islandSelectorFrame.Parent = folder
+
+    local islandLabel = Instance.new("TextLabel")
+    islandLabel.Size = UDim2.new(0, 280, 0, 40)
+    islandLabel.BackgroundTransparency = 1
+    islandLabel.Text = "Teleport: None"
+    islandLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    islandLabel.TextSize = 16
+    islandLabel.TextXAlignment = Enum.TextXAlignment.Left
+    islandLabel.Parent = islandSelectorFrame
+
+    local dropdownButton = Instance.new("TextButton")
+    dropdownButton.Size = UDim2.new(0, 40, 0, 40)
+    dropdownButton.Position = UDim2.new(0, 280, 0, 0)
+    dropdownButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    dropdownButton.Text = "☟"
+    dropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    dropdownButton.TextSize = 16
+    dropdownButton.Parent = islandSelectorFrame
+
+    local dropdownFrame = Instance.new("ScrollingFrame")
+    dropdownFrame.Size = UDim2.new(0, 320, 0, 150)
+    dropdownFrame.Position = UDim2.new(0, 0, 0, 40)
+    dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    dropdownFrame.BorderSizePixel = 0
+    dropdownFrame.Visible = false
+    dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, #IslandsList * 30)
+    dropdownFrame.Parent = islandSelectorFrame
+
+    local dropdownList = Instance.new("UIListLayout")
+    dropdownList.Parent = dropdownFrame
+    dropdownList.SortOrder = Enum.SortOrder.LayoutOrder
+    dropdownList.Padding = UDim.new(0, 2)
+
+    -- Thêm các đảo vào bảng dropdown
+    for i, island in ipairs(IslandsList) do
+        local islandButton = Instance.new("TextButton")
+        islandButton.Size = UDim2.new(0, 320, 0, 30)
+        islandButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        islandButton.Text = island.Name
+        islandButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        islandButton.TextSize = 14
+        islandButton.Parent = dropdownFrame
+
+        islandButton.MouseButton1Click:Connect(function()
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character.HumanoidRootPart.Position = island.Position
+                islandLabel.Text = "Teleport: " .. island.Name
+            end
+            dropdownFrame.Visible = false
+        end)
+    end
+
+    dropdownButton.MouseButton1Click:Connect(function()
+        dropdownFrame.Visible = not dropdownFrame.Visible
+    end)
 end
 
 -- Hút tất cả orbs (toàn map, thu thập nhiều orbs cùng lúc)
@@ -511,10 +669,9 @@ local function toggleInvisibleOrbs(toggle)
     if toggle then
         for _, v in pairs(Workspace.orbFolder:GetDescendants()) do
             if v:IsA("BasePart") then
-                v.Transparency = 1 -- Làm orbs vô hình
+                v.Transparency = 1
             end
         end
-        -- Vòng lặp để đảm bảo orbs mới sinh ra cũng vô hình
         spawn(function()
             while INVISIBLE_ORBS do
                 for _, v in pairs(Workspace.orbFolder:GetDescendants()) do
@@ -526,12 +683,50 @@ local function toggleInvisibleOrbs(toggle)
             end
         end)
     else
-        -- Khôi phục orbs về trạng thái hữu hình
         for _, v in pairs(Workspace.orbFolder:GetDescendants()) do
             if v:IsA("BasePart") then
                 v.Transparency = 0
             end
         end
+    end
+end
+
+-- Auto Buy Selected Pet
+local function autoBuyPet(toggle)
+    if toggle then
+        spawn(function()
+            while AUTO_BUY_PET and SelectedPet do
+                -- Giả lập mua pet (thay bằng remote event thật trong game nếu có)
+                local playerGems = LocalPlayer:FindFirstChild("leaderstats") and LocalPlayer.leaderstats:FindFirstChild("Gems")
+                if playerGems and playerGems.Value >= SelectedPet.Cost then
+                    -- Gửi yêu cầu mua pet (cần thay bằng remote event thực tế)
+                    print("Buying pet: " .. SelectedPet.Name)
+                    -- Ví dụ: ReplicatedStorage.BuyPet:InvokeServer(SelectedPet.Name, SelectedPet.Cost)
+                end
+                wait() -- Mua nhanh nhất có thể
+            end
+        end)
+    end
+end
+
+-- Auto Evolve Pets
+local function autoEvolvePets(toggle)
+    if toggle then
+        spawn(function()
+            while AUTO_EVOLVE_PETS do
+                -- Giả lập kiểm tra và evolve pet (thay bằng logic thật trong game nếu có)
+                for _, pet in ipairs(PetsList) do
+                    local petCount = 0 -- Đếm số lượng pet trong inventory (cần thay bằng logic thật)
+                    -- Ví dụ: petCount = GetPetCount(pet.Name)
+                    if petCount >= 5 then
+                        -- Gửi yêu cầu evolve pet (cần thay bằng remote event thật)
+                        print("Evolving pet: " .. pet.Name)
+                        -- Ví dụ: ReplicatedStorage.EvolvePet:InvokeServer(pet.Name)
+                    end
+                end
+                wait(1) -- Kiểm tra mỗi giây
+            end
+        end)
     end
 end
 
@@ -578,11 +773,24 @@ AUTO_REBIRTH = createToggleButton("Auto Rebirth", 240, AUTO_REBIRTH, function(to
     autoRebirth(toggle)
 end, MainFolder)
 
--- Thêm toggle Invisible Orbs
 AUTO_INVISIBLE_ORBS = createToggleButton("Invisible Orbs", 280, INVISIBLE_ORBS, function(toggle)
     INVISIBLE_ORBS = toggle
     toggleInvisibleOrbs(toggle)
 end, MainFolder)
+
+-- Thêm Pet Selector và Auto Buy/Auto Evolve trong folder Pets
+createPetSelector(0, PetsFolder)
+AUTO_BUY_PET = createToggleButton("Auto Buy Pet", 40, AUTO_BUY_PET, function(toggle)
+    AUTO_BUY_PET = toggle
+    autoBuyPet(toggle)
+end, PetsFolder)
+AUTO_EVOLVE_PETS = createToggleButton("Auto Evolve Pets", 80, AUTO_EVOLVE_PETS, function(toggle)
+    AUTO_EVOLVE_PETS = toggle
+    autoEvolvePets(toggle)
+end, PetsFolder)
+
+-- Thêm Island Selector trong folder Teleport
+createIslandSelector(0, TeleportFolder)
 
 createSlider("Walkspeed", 0, 16, 250, 16, function(value)
     setWalkspeed(value)
@@ -606,6 +814,8 @@ LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     if AUTO_HOOPS then autoCollectHoops(true) end
     if AUTO_REBIRTH then autoRebirth(true) end
     if INVISIBLE_ORBS then toggleInvisibleOrbs(true) end
+    if AUTO_BUY_PET then autoBuyPet(true) end
+    if AUTO_EVOLVE_PETS then autoEvolvePets(true) end
 end)
 
 -- Anti AFK
